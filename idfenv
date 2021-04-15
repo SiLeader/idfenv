@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+
+import sys
+import argparse
+import subprocess
+import pathlib
+import json
+
+
+__cwd = pathlib.Path(__file__).parent
+__status = __cwd / 'status'
+
+
+def __init(args):
+    with open(str(__cwd / 'init.sh')) as fp:
+        print(fp.read().replace('{CURRENT}', str(__cwd)))
+
+
+def __install(args):
+    if args.list:
+        proc = subprocess.run(['bash', str(__cwd / 'fetch-versions.sh')])
+        if proc.returncode != 0:
+            print(proc.stdout.decode())
+            sys.exit(proc.returncode)
+
+        tags_json = __status / 'tags.json'
+        branches_json = __status / 'branches.json'
+
+        with open(str(tags_json)) as fp:
+            tags = json.load(fp)
+        with open(str(branches_json)) as fp:
+            branches = json.load(fp)
+        for b in branches:
+            print(b['name'])
+        for t in tags:
+            print(t['name'])
+        sys.exit(0)
+
+    version = args.version
+    if version is None:
+        print('version not specified')
+        sys.exit(1)
+        
+    stdout_to = None if args.verbose else subprocess.PIPE
+    print('cloning ESP-IDF')
+    proc = subprocess.run(['bash', str(__cwd / 'fetch-version.sh'), args.version], stdout=stdout_to, stderr=subprocess.STDOUT)
+    if proc.returncode != 0:
+        if not args.verbose:
+            print(proc.stdout.decode())
+        sys.exit(proc.returncode)
+    print('installing dependencies')
+    proc = subprocess.run(['bash', str(__cwd / 'install-version.sh'), args.version], stdout=stdout_to, stderr=subprocess.STDOUT)
+    if proc.returncode != 0:
+        if not args.verbose:
+            print(proc.stdout.decode())
+        sys.exit(proc.returncode)
+
+
+def __uninstall(args):
+    pass
+
+
+def __versions(args):
+    shims = __cwd / 'shims'
+    for f in shims.glob('*'):
+        if not f.is_dir():
+            continue
+        print(f.name)
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='manage multi ESP-IDF environment',
+        epilog='GNU General Public License version 3.0'
+    )
+    subparser = parser.add_subparsers()
+    install_parser = subparser.add_parser('install')
+    install_parser.add_argument('version', help='version', default=None, nargs='?')
+    install_parser.add_argument('--list', '-l', help='list all available versions', action='store_true')
+    install_parser.add_argument('--verbose', help='show verbose log', action='store_true')
+    install_parser.set_defaults(handler=__install)
+
+    uninstall_parser = subparser.add_parser('uninstall')
+    uninstall_parser.add_argument('version', help='version')
+    uninstall_parser.set_defaults(handler=__uninstall)
+
+    versions_parser = subparser.add_parser('versions')
+    versions_parser.set_defaults(handler=__versions)
+
+    init_parser = subparser.add_parser('init')
+    init_parser.set_defaults(handler=__init)
+
+    local_parser = subparser.add_parser('local')
+    local_parser.add_argument('version')
+
+    args = parser.parse_args()
+    if hasattr(args, 'handler'):
+        args.handler(args)
+    else:
+        parser.print_usage()
+
+
+if __name__ == '__main__':
+    main()
+
