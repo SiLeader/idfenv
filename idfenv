@@ -18,7 +18,7 @@ def __init(args):
 
 def __install(args):
     if args.list:
-        proc = subprocess.run(['bash', str(__cwd / 'fetch-versions.sh')])
+        proc = subprocess.run(['bash', str(__cwd / 'fetch-versions.sh')], cwd=str(__cwd))
         if proc.returncode != 0:
             print(proc.stdout.decode())
             sys.exit(proc.returncode)
@@ -43,13 +43,13 @@ def __install(args):
         
     stdout_to = None if args.verbose else subprocess.PIPE
     print('cloning ESP-IDF')
-    proc = subprocess.run(['bash', str(__cwd / 'fetch-version.sh'), args.version], stdout=stdout_to, stderr=subprocess.STDOUT)
+    proc = subprocess.run(['bash', str(__cwd / 'fetch-version.sh'), args.version], stdout=stdout_to, stderr=subprocess.STDOUT, cwd=str(__cwd))
     if proc.returncode != 0:
         if not args.verbose:
             print(proc.stdout.decode())
         sys.exit(proc.returncode)
     print('installing dependencies')
-    proc = subprocess.run(['bash', str(__cwd / 'install-version.sh'), args.version], stdout=stdout_to, stderr=subprocess.STDOUT)
+    proc = subprocess.run(['bash', str(__cwd / 'install-version.sh'), args.version], stdout=stdout_to, stderr=subprocess.STDOUT, cwd=str(__cwd))
     if proc.returncode != 0:
         if not args.verbose:
             print(proc.stdout.decode())
